@@ -1,0 +1,19 @@
+{
+  "env": {
+    "browser": true,
+    "mocha": true,
+    "node": true
+  },
+  "parser": "babel-eslint",
+  "rules": {
+    "quotes": [1, "single", "avoid-escape"],
+    "semi": [1, "always"],
+    "no-undef": 2,
+    "no-unused-vars": 2,
+    "no-underscore-dangle": 0,
+    "no-use-before-define": 0,
+    "jsx-quotes": [1, "prefer-double"],
+    "prefer-const": 2,
+    "comma-dangle": [2, "never"]
+  }
+}
