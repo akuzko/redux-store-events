@@ -1,7 +1,7 @@
 redux-store-events
 ==================
 
-A simple, minimalistic and flexible way to organize redux logic
+Simple, minimalistic and flexible way to organize redux logic
 
 ## Installation
 
@@ -11,12 +11,14 @@ npm install --save redux-store-events
 
 ## Usage
 
-### 1. Define Events Namespace
+### 1. Define events namespace
 
-Basic setup for most common CRUD actions may look like this:
+Events are organizaed in namespaces. Basic setup for most common CRUD actions
+may look like this:
 
 ```js
 // events/todos.js
+
 import events from 'redux-store-events';
 import update from 'update-js';
 import { get, post, put, destroy } from 'your-requests-lib';
@@ -42,51 +44,64 @@ events('todos')
   })
   .on('create', (item) => {
     return post('/items', { item }).then((response) => {
-      this.reduce((state) => {
+      this.reduce('createSuccess', (state) => {
         return update.push(state, 'items', response.data);
       });
     });
   })
   .on('update', (item) => {
     return put(`/items/${item.id}`, { item }).then((response) => {
-      this.reduce((state) => {
+      this.reduce('updateSuccess', (state) => {
         return update(state, `items.{id:${item.id}}`, response.data);
-      });
-    });
-  })
-  .on('toggleActive', (itemId) => {
-    return put(`/items/${item.id}/toggle`).then(() => {
-      this.reduce((state) => {
-        return update.with(state, `items.{id:${item.id}}.active`, (active) => !active);
       });
     });
   })
   .on('destroy', (itemId) => {
     return destroy(`/items/${itemId}`).then(() => {
-      this.reduce((state) => {
+      this.reduce('destroySuccess', (state) => {
         return update.remove(state, `items.{id:${itemId}}`);
       });
     });
   });
 ```
 
+**NOTE:** since event handler uses `this.reduce` call to reduce store, handler has to
+be a function with no bounded context (this also means no implicitly bounded context
+via transpilers that replace `this` with `_this` that references to context). To overcome
+this limitation if you need to bind a context, you may do something like this:
+
+```js
+const reduce = events('todos').reduce;
+events('todos')
+  .on('load', () => {
+    reduce(state => ({ ...state, loading: true }));
+    // ....
+  });
+```
+
 ### 2. Add an index file to import all events
 
+```js
 // app/events/all.js
+
 import './todos';
 // ... import all other event namespaces
+```
 
-### 3. Create Store
+### 3. Create store with attached events
 
+```js
 // you application entry component
+
 import { createStore } from 'redux';
 import events from 'redux-store-events';
 
 import 'app/events/all';
 
 const store = events(createStore);
+```
 
-### 4. Use `events` Anywhere
+### 4. Use `events` anywhere
 
 For instance, if you use `redux` with React and `react-redux`, you may have the following:
 
@@ -111,9 +126,9 @@ class Todos extends PureComponent {
     todoEvents.create(todo);
   }
 
-  // callback for toggle button
+  // callback for toggle 'Active' button
   toggleTodo(todoId) {
-    todoEvents.toggle(todoId);
+    todoEvents.toggleActive(todoId);
   }
 
   // rest of definitions
@@ -123,6 +138,30 @@ export default connect(mapStateToProps)(Todos);
 ```
 
 Note that `mapDispatchToProps` is obsolete if you use `redux-store-events`;
+
+### Mixins
+
+Event mixins are helper functions used to define shared functionality between
+different event namespaces. Each mixin function accepts namespaced events object
+as it's first argument, and the rest of arguments that are passed to `.use` method
+of events object itself:
+
+```js
+// app/events/mixins/fooSetter.js
+export default function fooSetter(events, value) {
+  events.on('setFoo', () => {
+    return events.reduce(state => ({ ...state, foo: value }));
+  });
+}
+
+// app/events/todos.js
+import fooSetter from './mixins/fooSetter';
+
+events('todos')
+  .init({ items: [] })
+  .use(fooSetter, 'foo')
+  // ... rest of definitions
+```
 
 ## Tips and Hints
 
@@ -135,7 +174,7 @@ When defining event namespace, you can export it immediately to import where it 
 export default events('todos')
   .init(initialState)
   .on('load', () => {
-    // load events
+    // handle load event
   })
   // the rest of handler definitions
 
@@ -149,6 +188,35 @@ class Todos extends PureComponent {
   // the rest of definitions
 }
 ```
+
+### Use `update-js/fp` to reduce store
+
+[`update-js/fp`](https://www.npmjs.com/package/update-js#update-jsfp-module) module provides
+an `update` function that returns a currying function that can be used as callback for
+reducing store in event handlers. For example, this:
+
+```js
+events('todos')
+  .init({ loading: false, list: { items: [], query: {} } })
+  .on('loadSuccess', (items) => {
+    this.reduce((state) => {
+      return { ...state, list: { ...state.list, items } };
+    });
+  });
+```
+turns to this:
+
+```js
+import update from 'update-js/fp';
+
+events('todos')
+  .init({ loading: false, list: { items: [], query: {} } })
+  .on('loadSuccess', (items) => {
+    this.reduce(update('list.items', items));
+  });
+```
+
+The profit from `update-js/fp` usage increases as complexity of store grows.
 
 ## License
 

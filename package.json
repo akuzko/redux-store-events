@@ -1,7 +1,7 @@
 {
   "name": "redux-store-events",
   "version": "1.0.0",
-  "description": "A simple, minimalistic and flexible way to organize redux logic",
+  "description": "Simple, minimalistic and flexible way to organize redux logic",
   "main": "./lib/index.js",
   "scripts": {
     "build": "babel src --out-dir lib",
@@ -28,7 +28,7 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "redux": "^3.7.2"
+    "redux": "^3.6"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",

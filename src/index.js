@@ -11,6 +11,10 @@ Object.assign(globalEvents, {
     store = reduxStore;
   },
 
+  detach() {
+    store = null;
+  },
+
   getReducer() {
     return combineReducers(Object.keys(allEvents).reduce((result, ns) => {
       const initial = initialStates[ns];
@@ -31,6 +35,10 @@ const eventsMixin = {
   init(initialState) {
     initialStates[this.namespace] = initialState;
     return this;
+  },
+
+  use(mixin, ...args) {
+    mixin.call(null, this, ...args);
   },
 
   on(name, handler) {
@@ -55,6 +63,10 @@ const eventsMixin = {
     return this;
   },
 
+  trigger(name, ...args) {
+    return this[name](...args);
+  },
+
   reduce(event, reducer) {
     if (reducer === undefined && typeof event === 'function') {
       reducer = event;
@@ -74,6 +86,7 @@ function createEvents(namespace) {
     }
 
     Object.assign(events, eventsMixin, { namespace });
+    events.reduce = events.reduce.bind(events);
     allEvents[namespace] = events;
   }
 
