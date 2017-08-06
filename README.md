@@ -3,6 +3,9 @@ redux-store-events
 
 Simple, minimalistic and flexible way to organize redux logic
 
+[![build status](https://img.shields.io/travis/akuzko/redux-store-events/master.svg?style=flat-square)](https://travis-ci.org/akuzko/redux-store-events)
+[![npm version](https://img.shields.io/npm/v/redux-store-events.svg?style=flat-square)](https://www.npmjs.com/package/redux-store-events)
+
 ## Installation
 
 ```
