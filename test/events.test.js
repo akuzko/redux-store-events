@@ -7,18 +7,6 @@ describe('events', function() {
     events.detach();
   });
 
-  describe('initialization', function() {
-    it('throws error if bounded function is used as handler', function() {
-      expect(function() {
-        events('tests')
-          .init({ foo: 1 })
-          .on('test', function() {
-            this.reduce(() => ({ foo: 2 }));
-          }.bind({}));
-      }).toThrow('cannot use bounded function as event handler');
-    });
-  });
-
   describe('usage', function() {
     beforeEach(function() {
       events('tests')
@@ -48,6 +36,21 @@ describe('events', function() {
       expect(function() {
         events(createStore);
       }).toThrow('store is already created');
+    });
+
+    describe('#setup', function() {
+      it('passes events object and reducer method to setup function', function() {
+        events('tests').setup((tests, reduce) => {
+          tests.on('test2', () => {
+            reduce(() => ({ foo: 3 }));
+          });
+        });
+
+        const store = events(createStore);
+
+        events('tests').test2();
+        expect(store.getState()).toEqual({ tests: { foo: 3 } });
+      });
     });
 
     describe('#trigger', function() {

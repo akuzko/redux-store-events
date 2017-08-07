@@ -32,6 +32,11 @@ Object.assign(globalEvents, {
 });
 
 const eventsMixin = {
+  setup(fn) {
+    fn.call(this, this, this.reduce);
+    return this;
+  },
+
   init(initialState) {
     initialStates[this.namespace] = initialState;
     return this;
@@ -42,10 +47,6 @@ const eventsMixin = {
   },
 
   on(name, handler) {
-    if (handler.prototype === undefined) {
-      throw new Error('cannot use bounded function as event handler');
-    }
-
     this[name] = function() {
       const prev = this.currentEvent;
       let result;

@@ -20,7 +20,7 @@ Events are organizaed in namespaces. Basic setup for most common CRUD actions
 may look like this:
 
 ```js
-// events/todos.js
+// app/events/todos.js
 
 import events from 'redux-store-events';
 import update from 'update-js';
@@ -31,56 +31,60 @@ const initialState = {
   items: []
 };
 
+events('todos').setup((todos, reduce) => {
+  todos
+    .init(initialState)
+    .on('load', () => {
+      reduce(state => ({ ...state, loading: true }));
+
+      return get('/todos').then((response) => {
+        // since this is async callback, the scope of 'load' event is lost at this point,
+        // and 'loadSuccess' is used to identify a dispatched action. this is used purely
+        // for clarity, the code will still work without explicitly named action.
+        reduce('loadSuccess', () => {
+          return { loading: false, items: response.data };
+        });
+      });
+    })
+    .on('create', (item) => {
+      return post('/todos', { item }).then((response) => {
+        reduce('createSuccess', (state) => {
+          return update.push(state, 'items', response.data);
+        });
+      });
+    })
+    .on('update', (item) => {
+      return put(`/todos/${item.id}`, { item }).then((response) => {
+        reduce('updateSuccess', (state) => {
+          return update(state, `items.{id:${item.id}}`, response.data);
+        });
+      });
+    })
+    .on('destroy', (itemId) => {
+      return destroy(`/todos/${itemId}`).then(() => {
+        reduce('destroySuccess', (state) => {
+          return update.remove(state, `items.{id:${itemId}}`);
+        });
+      });
+    });
+});
+```
+
+**NOTE:** it is possible to initialize and define event namespace in a more brief
+way without using a `setup` function:
+
+```js
 events('todos')
   .init(initialState)
   .on('load', () => {
     this.reduce(state => ({ ...state, loading: true }));
-
-    return get('/todos').then((response) => {
-      // since this is async callback, the scope of 'load' event is lost at this point,
-      // and 'loadSuccess' is used to identify a dispatched action. this is used purely
-      // for clarity, the code will still work without explicitly named action.
-      this.reduce('loadSuccess', (state) => {
-        return { loading: false, items: response.data };
-      });
-    });
-  })
-  .on('create', (item) => {
-    return post('/items', { item }).then((response) => {
-      this.reduce('createSuccess', (state) => {
-        return update.push(state, 'items', response.data);
-      });
-    });
-  })
-  .on('update', (item) => {
-    return put(`/items/${item.id}`, { item }).then((response) => {
-      this.reduce('updateSuccess', (state) => {
-        return update(state, `items.{id:${item.id}}`, response.data);
-      });
-    });
-  })
-  .on('destroy', (itemId) => {
-    return destroy(`/items/${itemId}`).then(() => {
-      this.reduce('destroySuccess', (state) => {
-        return update.remove(state, `items.{id:${itemId}}`);
-      });
-    });
-  });
-```
-
-**NOTE:** since event handler uses `this.reduce` call to reduce store, handler has to
-be a function with no bounded context (this also means no implicitly bounded context
-via transpilers that replace `this` with `_this` that references to context). To overcome
-this limitation if you need to bind a context, you may do something like this:
-
-```js
-const reduce = events('todos').reduce;
-events('todos')
-  .on('load', () => {
-    reduce(state => ({ ...state, loading: true }));
     // ....
-  });
+  })
+  // rest of definitions
 ```
+
+Note, however, that it relies on `this.reduce` method call, which means that event
+handler function's context should not be bound to any object in any way.
 
 ### 2. Add an index file to import all events
 
@@ -94,7 +98,7 @@ import './todos';
 ### 3. Create store with attached events
 
 ```js
-// you application entry component
+// you application entry point
 
 import { createStore } from 'redux';
 import events from 'redux-store-events';
@@ -113,25 +117,23 @@ import React, { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import events from 'redux-store-events';
 
-const todoEvents = events('todos');
-
 function mapStateToProps(state) {
   return state.todos;
 }
 
 class Todos extends PureComponent {
   componentDidMount() {
-    todoEvents.load();
+    events('todos').load();
   }
 
   // callback on form submit
   submitNewTodo(todo) {
-    todoEvents.create(todo);
+    events('todos').create(todo);
   }
 
   // callback for toggle 'Active' button
   toggleTodo(todoId) {
-    todoEvents.toggleActive(todoId);
+    events('todos').toggleActive(todoId);
   }
 
   // rest of definitions
@@ -173,15 +175,17 @@ events('todos')
 When defining event namespace, you can export it immediately to import where it used:
 
 ```js
-// events/todos.js
-export default events('todos')
-  .init(initialState)
-  .on('load', () => {
-    // handle load event
-  })
-  // the rest of handler definitions
+// app/events/todos.js
+export default events('todos').setup((todos, reduce) => {
+  todos
+    .init(initialState)
+    .on('load', () => {
+      // handle load event
+    })
+    // the rest of handler definitions
+});
 
-// components/Todos.jsx
+// app/components/Todos.jsx
 import events from 'app/events/todos';
 
 class Todos extends PureComponent {
@@ -199,10 +203,9 @@ an `update` function that returns a currying function that can be used as callba
 reducing store in event handlers. For example, this:
 
 ```js
-events('todos')
-  .init({ loading: false, list: { items: [], query: {} } })
+// ... events namespace initialiation
   .on('loadSuccess', (items) => {
-    this.reduce((state) => {
+    reduce((state) => {
       return { ...state, list: { ...state.list, items } };
     });
   });
@@ -212,10 +215,9 @@ turns to this:
 ```js
 import update from 'update-js/fp';
 
-events('todos')
-  .init({ loading: false, list: { items: [], query: {} } })
+// ... events namespace initialiation
   .on('loadSuccess', (items) => {
-    this.reduce(update('list.items', items));
+    reduce(update('list.items', items));
   });
 ```
 
