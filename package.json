@@ -1,6 +1,6 @@
 {
   "name": "redux-store-events",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Simple, minimalistic and flexible way to organize redux logic",
   "main": "./lib/index.js",
   "scripts": {
