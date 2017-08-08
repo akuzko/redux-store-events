@@ -4,7 +4,7 @@ import expect, { createSpy } from 'expect';
 
 describe('events', function() {
   afterEach(function() {
-    events.detach();
+    events.clear();
   });
 
   describe('usage', function() {
@@ -60,6 +60,48 @@ describe('events', function() {
         events('tests').on('test', spy);
         events('tests').trigger('test', 'foo');
         expect(spy).toHaveBeenCalledWith('foo');
+      });
+    });
+  });
+
+  describe('advanced usage', function() {
+    beforeEach(function() {
+      const root = events('root');
+
+      root('foo')
+        .init({ value: 5 })
+        .on('test', function() {
+          this.reduce(() => ({ value: 6 }));
+        });
+
+      root('bar')
+        .init({ value: 7 })
+        .on('test', function() {
+          this.reduce(() => ({ value: 8 }));
+        });
+    });
+
+    it('initializes nested namespaces', function() {
+      const store = events(createStore);
+
+      expect(store.getState()).toEqual({
+        root: {
+          foo: { value: 5 },
+          bar: { value: 7 }
+        }
+      });
+    });
+
+    it('reduces actions of nested namespaces correctly', function() {
+      const store = events(createStore);
+
+      events('root')('foo').test();
+
+      expect(store.getState()).toEqual({
+        root: {
+          foo: { value: 6 },
+          bar: { value: 7 }
+        }
       });
     });
   });

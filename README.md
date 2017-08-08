@@ -84,7 +84,7 @@ events('todos')
 ```
 
 Note, however, that it relies on `this.reduce` method call, which means that event
-handler function's context should not be bound to any object in any way.
+handler's context should not be bound to any object in any way.
 
 ### 2. Add an index file to import all events
 
@@ -143,6 +143,42 @@ export default connect(mapStateToProps)(Todos);
 ```
 
 Note that `mapDispatchToProps` is obsolete if you use `redux-store-events`;
+
+### Nested namespaces
+
+It is possible to nest namespaces to handle deep Redux store:
+
+```js
+import events from 'redux-store-events';
+import { createStore } from 'redux';
+
+const rootEvents = events('root');
+
+rootEvents('nested1')
+  .init({ value: 'nested1' })
+  .on('foo', () => {
+    return { value: 'nested1-foo' };
+  });
+
+rootEvents('nested2')
+  .init({ value: 'nested2' })
+  .on('foo', () => {
+    return { value: 'nested2-foo' };
+  });
+
+const store = events(createStore);
+
+events('root')('nested2').foo();
+
+store.getState() // =>
+// { root: {
+//     nested1: { value: 'nested1' },
+//     nested2: { value: 'nested2-foo' }
+//   }
+// }
+```
+
+Namespaces can be nested with any depth.
 
 ### Mixins
 

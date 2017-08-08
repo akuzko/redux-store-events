@@ -1,10 +1,33 @@
 import { combineReducers } from 'redux';
+import set from 'lodash.set';
 
 const globalEvents = createEvents();
-const allEvents = {};
-const initialStates = {};
+let eventsStore = {};
+let eventsGraph = {};
+let initialStates = {};
 
 let store;
+
+function combineNamespaceReducers(events, path = []) {
+  return combineReducers(Object.keys(events).reduce((result, ns) => {
+    const nsPath = [...path, ns];
+
+    if (typeof events[ns] === 'object') {
+      result[ns] = combineNamespaceReducers(events[ns], nsPath);
+    } else {
+      const initial = initialStates[nsPath.join('.')];
+
+      result[ns] = function(state = initial, action) {
+        if (!new RegExp(`^event:${escape(nsPath.join('/'))}(?::.+)?$`).test(action.type)) {
+          return state;
+        }
+
+        return action.reducer(state);
+      };
+    }
+    return result;
+  }, {}));
+}
 
 Object.assign(globalEvents, {
   attach(reduxStore) {
@@ -15,19 +38,15 @@ Object.assign(globalEvents, {
     store = null;
   },
 
+  clear() {
+    eventsStore = {};
+    eventsGraph = {};
+    initialStates = {};
+    store = null;
+  },
+
   getReducer() {
-    return combineReducers(Object.keys(allEvents).reduce((result, ns) => {
-      const initial = initialStates[ns];
-
-      result[ns] = function(state = initial, action) {
-        if (!new RegExp(`^event:${escape(ns)}(?::.+)?$`).test(action.type)) {
-          return state;
-        }
-
-        return action.reducer(state);
-      };
-      return result;
-    }, {}));
+    return combineNamespaceReducers(eventsGraph);
   }
 });
 
@@ -38,7 +57,7 @@ const eventsMixin = {
   },
 
   init(initialState) {
-    initialStates[this.namespace] = initialState;
+    initialStates[this.namespace.join('.')] = initialState;
     return this;
   },
 
@@ -47,7 +66,7 @@ const eventsMixin = {
   },
 
   on(name, handler) {
-    this[name] = function() {
+    this[name] = (function() {
       const prev = this.currentEvent;
       let result;
       this.currentEvent = name;
@@ -59,7 +78,7 @@ const eventsMixin = {
       }
       this.currentEvent = prev;
       return result;
-    };
+    }).bind(this);
 
     return this;
   },
@@ -74,7 +93,7 @@ const eventsMixin = {
       event = this.currentEvent;
     }
 
-    const type = `event:${this.namespace}:${event || '$generic'}`;
+    const type = `event:${this.namespace.join('/')}:${event || '$generic'}`;
 
     store.dispatch({ type, reducer });
   }
@@ -82,13 +101,16 @@ const eventsMixin = {
 
 function createEvents(namespace) {
   if (namespace) {
-    if (allEvents[namespace]) {
-      return allEvents[namespace];
+    const key = namespace.join('.');
+
+    if (eventsStore[key]) {
+      return eventsStore[key];
     }
 
     Object.assign(events, eventsMixin, { namespace });
     events.reduce = events.reduce.bind(events);
-    allEvents[namespace] = events;
+    eventsStore[key] = events;
+    set(eventsGraph, namespace, true);
   }
 
   function events(ns) {
@@ -103,7 +125,7 @@ function createEvents(namespace) {
       return store;
     }
 
-    return createEvents(namespace ? `${namespace}.${ns}` : ns);
+    return createEvents(namespace ? [...namespace, ns] : [ns]);
   }
 
   return events;
