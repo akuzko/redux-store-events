@@ -1,5 +1,5 @@
 import { createStore } from 'redux';
-import events from '../src';
+import events, { getState } from '../src';
 import expect, { createSpy } from 'expect';
 
 describe('events', function() {
@@ -123,6 +123,36 @@ describe('events', function() {
       const store = events(createStore);
       events('tests').mixinEvent();
       expect(store.getState()).toEqual({ tests: { foo: 'foo' } });
+    });
+  });
+
+  describe('getState', function() {
+    context('when store is not yet initialized', function() {
+      it('throws an exception', function() {
+        expect(function() {
+          getState();
+        }).toThrow('redux store is not initialized');
+      });
+    });
+
+    context('when store is initialized', function() {
+      beforeEach(function() {
+        events('tests').init({ foo: 'bar' });
+      });
+
+      it('returns redux store\'s state', function() {
+        events(createStore);
+        
+        expect(getState()).toEqual({ tests: { foo: 'bar' } });
+      });
+
+      describe('events#getState', function() {
+        it('returns redux store object defined under namespace', function() {
+          events(createStore);
+
+          expect(events('tests').getState()).toEqual({ foo: 'bar' });
+        });
+      });
     });
   });
 });

@@ -1,5 +1,6 @@
 import { combineReducers } from 'redux';
 import set from 'lodash.set';
+import get from 'lodash.get';
 
 const globalEvents = createEvents();
 let eventsStore = {};
@@ -7,6 +8,14 @@ let eventsGraph = {};
 let initialStates = {};
 
 let store;
+
+export function getState() {
+  if (!store) {
+    throw new Error('redux store is not initialized');
+  }
+
+  return store.getState();
+}
 
 function combineNamespaceReducers(events, path = []) {
   return combineReducers(Object.keys(events).reduce((result, ns) => {
@@ -96,6 +105,10 @@ const eventsMixin = {
     const type = `event:${this.namespace.join('/')}:${event || '$generic'}`;
 
     store.dispatch({ type, reducer });
+  },
+
+  getState() {
+    return get(getState(), this.namespace);
   }
 };
 
@@ -113,7 +126,7 @@ function createEvents(namespace) {
     set(eventsGraph, namespace, true);
   }
 
-  function events(ns) {
+  function events(ns, ...args) {
     if (typeof ns === 'function') {
       const createStore = ns;
 
@@ -121,7 +134,7 @@ function createEvents(namespace) {
         throw new Error('store is already created');
       }
 
-      store = createStore(globalEvents.getReducer());
+      store = createStore(globalEvents.getReducer(), ...args);
       return store;
     }
 

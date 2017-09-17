@@ -204,6 +204,32 @@ events('todos')
   // ... rest of definitions
 ```
 
+### `getState` function
+
+For convenience, you can use `getState` helper function in your event handlers. Also,
+all events instances have `getState` method that returns a state corresponding to events
+namespace. For example:
+
+```js
+import events, { getState } from 'redux-store-events';
+
+events('todos')
+  .init({ items: [], allowClear: false })
+  .on('allowClear', () => {
+    this.reduce(state => ({ ...state, allowClear: true }));
+  })
+  .on('clear', () => {
+    if (getState().todos.allowClear) {
+      this.reduce(state => ({ ...state, items: [] }));
+    }
+  });
+
+// after redux store has been created and initialized:
+getState() // => { todos: { items: [], allowClear: false } };
+
+events('todos').getState() // => { { items: [], allowClear: false } };
+```
+
 ## Tips and Hints
 
 ### `export` and `import` your event namespaces
