@@ -51,6 +51,20 @@ describe('events', function() {
         events('tests').test2();
         expect(store.getState()).toEqual({ tests: { foo: 3 } });
       });
+
+      it('initializes events and uses setup function that yield "on" and "reduce" functions', function() {
+        events('tests').setup({ foo: 1 }, (on, reduce) => {
+          on('test2', () => {
+            reduce(() => ({ foo: 3 }));
+          });
+        });
+
+        const store = events(createStore);
+
+        expect(store.getState()).toEqual({ tests: { foo: 1 } });
+        events('tests').test2();
+        expect(store.getState()).toEqual({ tests: { foo: 3 } });
+      });
     });
 
     describe('#trigger', function() {

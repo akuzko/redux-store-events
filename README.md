@@ -31,6 +31,53 @@ const initialState = {
   items: []
 };
 
+events('todos').setup(initialState, (on, reduce) => {
+  on('load', () => {
+    reduce(state => ({ ...state, loading: true }));
+
+    return get('/todos').then((response) => {
+      // since this is async callback, the scope of 'load' event is lost at this point,
+      // and 'loadSuccess' is used to identify a dispatched action. this is used purely
+      // for clarity, the code will still work without explicitly named action.
+      reduce('loadSuccess', () => {
+        return { loading: false, items: response.data };
+      });
+    });
+  });
+
+  on('create', (item) => {
+    return post('/todos', { item }).then((response) => {
+      reduce('createSuccess', (state) => {
+        return update.push(state, 'items', response.data);
+      });
+    });
+  });
+
+  on('update', (item) => {
+    return put(`/todos/${item.id}`, { item }).then((response) => {
+      reduce('updateSuccess', (state) => {
+        return update(state, `items.{id:${item.id}}`, response.data);
+      });
+    });
+  });
+  
+  on('destroy', (itemId) => {
+    return destroy(`/todos/${itemId}`).then(() => {
+      reduce('destroySuccess', (state) => {
+        return update.remove(state, `items.{id:${itemId}}`);
+      });
+    });
+  });
+});
+```
+
+The third argument that is passed into a setup function is namespaced events object itself.
+It can be used for direct manipulations, like adding mixins (see bellow). 
+
+If setup function has been called without initial state, it will yeild events object
+and `reduce` function to the function body: 
+
+```
 events('todos').setup((todos, reduce) => {
   todos
     .init(initialState)
@@ -38,9 +85,6 @@ events('todos').setup((todos, reduce) => {
       reduce(state => ({ ...state, loading: true }));
 
       return get('/todos').then((response) => {
-        // since this is async callback, the scope of 'load' event is lost at this point,
-        // and 'loadSuccess' is used to identify a dispatched action. this is used purely
-        // for clarity, the code will still work without explicitly named action.
         reduce('loadSuccess', () => {
           return { loading: false, items: response.data };
         });
@@ -53,24 +97,11 @@ events('todos').setup((todos, reduce) => {
         });
       });
     })
-    .on('update', (item) => {
-      return put(`/todos/${item.id}`, { item }).then((response) => {
-        reduce('updateSuccess', (state) => {
-          return update(state, `items.{id:${item.id}}`, response.data);
-        });
-      });
-    })
-    .on('destroy', (itemId) => {
-      return destroy(`/todos/${itemId}`).then(() => {
-        reduce('destroySuccess', (state) => {
-          return update.remove(state, `items.{id:${itemId}}`);
-        });
-      });
-    });
+    // ...
 });
-```
 
-**NOTE:** it is possible to initialize and define event namespace in a more brief
+
+**NOTE:** it is also possible to initialize and define event namespace in a more brief
 way without using a `setup` function:
 
 ```js

@@ -60,8 +60,14 @@ Object.assign(globalEvents, {
 });
 
 const eventsMixin = {
-  setup(fn) {
-    fn.call(this, this, this.reduce);
+  setup(setupOrInitialState, setup) {
+    if (typeof setupOrInitialState === 'function') {
+      setupOrInitialState.call(this, this, this.reduce);
+    } else {
+      this.init(setupOrInitialState);
+      setup.call(this, this.on, this.reduce, this);
+    }
+    
     return this;
   },
 
@@ -72,6 +78,7 @@ const eventsMixin = {
 
   use(mixin, ...args) {
     mixin.call(null, this, ...args);
+    return this;
   },
 
   on(name, handler) {
@@ -121,6 +128,7 @@ function createEvents(namespace) {
     }
 
     Object.assign(events, eventsMixin, { namespace });
+    events.on = events.on.bind(events);
     events.reduce = events.reduce.bind(events);
     eventsStore[key] = events;
     set(eventsGraph, namespace, true);
