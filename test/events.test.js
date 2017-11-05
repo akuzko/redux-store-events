@@ -38,6 +38,37 @@ describe('events', function() {
       }).toThrow('store is already created');
     });
 
+    describe('#init', function() {
+      it('initializes events and uses setup function that yield "on" and "reduce" functions', function() {
+        events('tests').init({ foo: 1 }, (on, reduce) => {
+          on('test2', () => {
+            reduce(() => ({ foo: 3 }));
+          });
+        });
+
+        const store = events(createStore);
+
+        expect(store.getState()).toEqual({ tests: { foo: 1 } });
+        events('tests').test2();
+        expect(store.getState()).toEqual({ tests: { foo: 3 } });
+      });
+    });
+
+    describe('#addHandlers', function() {
+      it('passes "on" and "reduce" methods to setup function', function() {
+        events('tests').addHandlers((on, reduce) => {
+          on('test2', () => {
+            reduce(() => ({ foo: 3 }));
+          });
+        });
+
+        const store = events(createStore);
+
+        events('tests').test2();
+        expect(store.getState()).toEqual({ tests: { foo: 3 } });
+      });
+    });
+
     describe('#setup', function() {
       it('passes events object and reducer method to setup function', function() {
         events('tests').setup((tests, reduce) => {
@@ -48,20 +79,6 @@ describe('events', function() {
 
         const store = events(createStore);
 
-        events('tests').test2();
-        expect(store.getState()).toEqual({ tests: { foo: 3 } });
-      });
-
-      it('initializes events and uses setup function that yield "on" and "reduce" functions', function() {
-        events('tests').setup({ foo: 1 }, (on, reduce) => {
-          on('test2', () => {
-            reduce(() => ({ foo: 3 }));
-          });
-        });
-
-        const store = events(createStore);
-
-        expect(store.getState()).toEqual({ tests: { foo: 1 } });
         events('tests').test2();
         expect(store.getState()).toEqual({ tests: { foo: 3 } });
       });
@@ -156,7 +173,7 @@ describe('events', function() {
 
       it('returns redux store\'s state', function() {
         events(createStore);
-        
+
         expect(getState()).toEqual({ tests: { foo: 'bar' } });
       });
 

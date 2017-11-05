@@ -60,24 +60,31 @@ Object.assign(globalEvents, {
 });
 
 const eventsMixin = {
-  setup(setupOrInitialState, setup) {
-    if (typeof setupOrInitialState === 'function') {
-      setupOrInitialState.call(this, this, this.reduce);
-    } else {
-      this.init(setupOrInitialState);
-      setup.call(this, this.on, this.reduce, this);
-    }
-    
+  setup(fn) {
+    fn.call(this, this, this.reduce);
+
     return this;
   },
 
-  init(initialState) {
+  addHandlers(fn) {
+    fn.call(this, this.on, this.reduce, this);
+
+    return this;
+  },
+
+  init(initialState, fn) {
     initialStates[this.namespace.join('.')] = initialState;
+
+    if (typeof fn === 'function') {
+      this.addHandlers(fn);
+    }
+
     return this;
   },
 
   use(mixin, ...args) {
     mixin.call(null, this, ...args);
+
     return this;
   },
 

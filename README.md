@@ -31,7 +31,7 @@ const initialState = {
   items: []
 };
 
-events('todos').setup(initialState, (on, reduce) => {
+events('todos').init(initialState, (on, reduce) => {
   on('load', () => {
     reduce(state => ({ ...state, loading: true }));
 
@@ -60,7 +60,7 @@ events('todos').setup(initialState, (on, reduce) => {
       });
     });
   });
-  
+
   on('destroy', (itemId) => {
     return destroy(`/todos/${itemId}`).then(() => {
       reduce('destroySuccess', (state) => {
@@ -72,34 +72,7 @@ events('todos').setup(initialState, (on, reduce) => {
 ```
 
 The third argument that is passed into a setup function is namespaced events object itself.
-It can be used for direct manipulations, like adding mixins (see bellow). 
-
-If setup function has been called without initial state, it will yeild events object
-and `reduce` function to the function body: 
-
-```
-events('todos').setup((todos, reduce) => {
-  todos
-    .init(initialState)
-    .on('load', () => {
-      reduce(state => ({ ...state, loading: true }));
-
-      return get('/todos').then((response) => {
-        reduce('loadSuccess', () => {
-          return { loading: false, items: response.data };
-        });
-      });
-    })
-    .on('create', (item) => {
-      return post('/todos', { item }).then((response) => {
-        reduce('createSuccess', (state) => {
-          return update.push(state, 'items', response.data);
-        });
-      });
-    })
-    // ...
-});
-
+It can be used for direct manipulations, like adding mixins (see bellow).
 
 **NOTE:** it is also possible to initialize and define event namespace in a more brief
 way without using a `setup` function:
@@ -116,6 +89,9 @@ events('todos')
 
 Note, however, that it relies on `this.reduce` method call, which means that event
 handler's context should not be bound to any object in any way.
+
+*Deprecation Notice:* There is also a deprecated `setup` method that calls passed
+function with events object and `reduce` method as arguments.
 
 ### 2. Add an index file to import all events
 
@@ -244,16 +220,17 @@ namespace. For example:
 ```js
 import events, { getState } from 'redux-store-events';
 
-events('todos')
-  .init({ items: [], allowClear: false })
-  .on('allowClear', () => {
-    this.reduce(state => ({ ...state, allowClear: true }));
-  })
-  .on('clear', () => {
-    if (getState().todos.allowClear) {
-      this.reduce(state => ({ ...state, items: [] }));
+events('todos').init({ items: [], allowClear: false }, (on, reduce, todos) => {
+  on('allowClear', () => {
+    reduce(state => ({ ...state, allowClear: true }));
+  });
+
+  on('clear', () => {
+    if (todos.getState().allowClear) {
+      reduce(state => ({ ...state, items: [] }));
     }
   });
+});
 
 // after redux store has been created and initialized:
 getState() // => { todos: { items: [], allowClear: false } };
@@ -269,21 +246,19 @@ When defining event namespace, you can export it immediately to import where it 
 
 ```js
 // app/events/todos.js
-export default events('todos').setup((todos, reduce) => {
-  todos
-    .init(initialState)
-    .on('load', () => {
-      // handle load event
-    })
-    // the rest of handler definitions
+export default events('todos').init(initialState, (on, reduce) => {
+  on('load', () => {
+    // handle load event
+  });
+  // the rest of handler definitions
 });
 
 // app/components/Todos.jsx
-import events from 'app/events/todos';
+import todos from 'app/events/todos';
 
 class Todos extends PureComponent {
   componentDidMount() {
-    events.load();
+    todos.load();
   }
   // the rest of definitions
 }
@@ -296,8 +271,8 @@ an `update` function that returns a currying function that can be used as callba
 reducing store in event handlers. For example, this:
 
 ```js
-// ... events namespace initialiation
-  .on('loadSuccess', (items) => {
+  // ... events namespace initialiation
+  on('loadSuccess', (items) => {
     reduce((state) => {
       return { ...state, list: { ...state.list, items } };
     });
@@ -308,8 +283,8 @@ turns to this:
 ```js
 import update from 'update-js/fp';
 
-// ... events namespace initialiation
-  .on('loadSuccess', (items) => {
+  // ... events namespace initialiation
+  on('loadSuccess', (items) => {
     reduce(update('list.items', items));
   });
 ```
