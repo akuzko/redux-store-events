@@ -54,25 +54,10 @@ describe('events', function() {
       });
     });
 
-    describe('#addHandlers', function() {
-      it('passes "on" and "reduce" methods to setup function', function() {
-        events('tests').addHandlers((on, reduce) => {
-          on('test2', () => {
-            reduce(() => ({ foo: 3 }));
-          });
-        });
-
-        const store = events(createStore);
-
-        events('tests').test2();
-        expect(store.getState()).toEqual({ tests: { foo: 3 } });
-      });
-    });
-
     describe('#setup', function() {
-      it('passes events object and reducer method to setup function', function() {
-        events('tests').setup((tests, reduce) => {
-          tests.on('test2', () => {
+      it('passes "on" and "reduce" methods to setup function', function() {
+        events('tests').setup((on, reduce) => {
+          on('test2', () => {
             reduce(() => ({ foo: 3 }));
           });
         });
@@ -133,6 +118,46 @@ describe('events', function() {
           foo: { value: 6 },
           bar: { value: 7 }
         }
+      });
+    });
+  });
+
+  describe('binding data object', function() {
+    context('using setup function', function() {
+      beforeEach(function() {
+        events('tests').init({ foo: 1 }, (on, reduce, evs) => {
+          on('test', () => {
+            reduce(() => ({ foo: evs.foo }));
+          });
+        });
+      });
+
+      it('binds data to events', function() {
+        events(createStore);
+
+        events('tests').test();
+        expect(events('tests').getState()).toEqual({ foo: undefined });
+        events('tests')({ foo: 2 }).test();
+        expect(events('tests').getState()).toEqual({ foo: 2 });
+      });
+    });
+
+    context('using on handler', function() {
+      beforeEach(function() {
+        events('tests')
+          .init({ foo: 1 })
+          .on('test', function() {
+            this.reduce(() => ({ foo: this.foo }));
+          });
+      });
+
+      it('binds data to events', function() {
+        events(createStore);
+
+        events('tests').test();
+        expect(events('tests').getState()).toEqual({ foo: undefined });
+        events('tests')({ foo: 2 }).test();
+        expect(events('tests').getState()).toEqual({ foo: 2 });
       });
     });
   });

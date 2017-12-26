@@ -38,6 +38,10 @@ function combineNamespaceReducers(events, path = []) {
   }, {}));
 }
 
+function nsToKey(namespace, separator = '.') {
+  return namespace.join(separator);
+}
+
 Object.assign(globalEvents, {
   attach(reduxStore) {
     store = reduxStore;
@@ -61,22 +65,18 @@ Object.assign(globalEvents, {
 
 const eventsMixin = {
   setup(fn) {
-    fn.call(this, this, this.reduce);
+    this._setupHandlers.push(fn);
 
-    return this;
-  },
-
-  addHandlers(fn) {
-    fn.call(this, this.on, this.reduce, this);
+    fn.call(this, this._on.bind(this), this.reduce, this);
 
     return this;
   },
 
   init(initialState, fn) {
-    initialStates[this.namespace.join('.')] = initialState;
+    initialStates[nsToKey(this.namespace)] = initialState;
 
     if (typeof fn === 'function') {
-      this.addHandlers(fn);
+      this.setup(fn);
     }
 
     return this;
@@ -88,26 +88,32 @@ const eventsMixin = {
     return this;
   },
 
-  on(name, handler) {
-    this[name] = (function() {
-      const prev = this.currentEvent;
-      let result;
-      this.currentEvent = name;
-      try {
-        result = handler.apply(this, arguments);
-      } catch (e) {
-        this.currentEvent = prev;
-        throw e;
-      }
-      this.currentEvent = prev;
-      return result;
-    }).bind(this);
+  _on(name, handler) {
+    this.handlers[name] = handler;
+    this[name] = function() {
+      return this.trigger(name, ...arguments);
+    };
+  },
 
-    return this;
+  on(name, handler) {
+    this._onHandlers[name] = handler;
+    this._on(name, handler);
   },
 
   trigger(name, ...args) {
-    return this[name](...args);
+    const prev = this.currentEvent;
+    let result;
+    this.currentEvent = name;
+
+    try {
+      result = this.handlers[name].apply(this, args);
+    } catch (e) {
+      this.currentEvent = prev;
+      throw e;
+    }
+    this.currentEvent = prev;
+
+    return result;
   },
 
   reduce(event, reducer) {
@@ -116,7 +122,7 @@ const eventsMixin = {
       event = this.currentEvent;
     }
 
-    const type = `event:${this.namespace.join('/')}:${event || '$generic'}`;
+    const type = `event:${nsToKey(this.namespace, '/')}:${event || '$generic'}`;
 
     store.dispatch({ type, reducer });
   },
@@ -128,13 +134,18 @@ const eventsMixin = {
 
 function createEvents(namespace) {
   if (namespace) {
-    const key = namespace.join('.');
+    const key = nsToKey(namespace);
 
     if (eventsStore[key]) {
       return eventsStore[key];
     }
 
-    Object.assign(events, eventsMixin, { namespace });
+    Object.assign(events, eventsMixin, {
+      namespace,
+      _setupHandlers: [],
+      _onHandlers: {},
+      handlers: {}
+    });
     events.on = events.on.bind(events);
     events.reduce = events.reduce.bind(events);
     eventsStore[key] = events;
@@ -151,6 +162,27 @@ function createEvents(namespace) {
 
       store = createStore(globalEvents.getReducer(), ...args);
       return store;
+    }
+
+    if (typeof ns === 'object') {
+      const { use, _on, reduce, trigger, getState } = eventsMixin;
+      const evs = {
+        ...ns,
+        namespace: events.namespace,
+        handlers: {},
+        use,
+        reduce,
+        trigger,
+        getState
+      };
+      evs.on = _on.bind(evs);
+      evs.reduce = evs.reduce.bind(evs);
+      events._setupHandlers.forEach(fn => fn.call(evs, evs.on, evs.reduce, evs));
+      for (const name in events._onHandlers) {
+        evs.on(name, events._onHandlers[name]);
+      }
+
+      return evs;
     }
 
     return createEvents(namespace ? [...namespace, ns] : [ns]);

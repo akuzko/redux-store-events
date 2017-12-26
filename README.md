@@ -45,26 +45,26 @@ events('todos').init(initialState, (on, reduce) => {
     });
   });
 
-  on('create', (item) => {
-    return post('/todos', { item }).then((response) => {
+  on('create', (todo) => {
+    return post('/todos', { todo }).then((response) => {
       reduce('createSuccess', (state) => {
         return update.push(state, 'items', response.data);
       });
     });
   });
 
-  on('update', (item) => {
-    return put(`/todos/${item.id}`, { item }).then((response) => {
+  on('update', (todo) => {
+    return put(`/todos/${todo.id}`, { todo }).then((response) => {
       reduce('updateSuccess', (state) => {
-        return update(state, `items.{id:${item.id}}`, response.data);
+        return update(state, `items.{id:${todo.id}}`, response.data);
       });
     });
   });
 
-  on('destroy', (itemId) => {
-    return destroy(`/todos/${itemId}`).then(() => {
+  on('destroy', (todoId) => {
+    return destroy(`/todos/${todoId}`).then(() => {
       reduce('destroySuccess', (state) => {
-        return update.remove(state, `items.{id:${itemId}}`);
+        return update.remove(state, `items.{id:${todoId}}`);
       });
     });
   });
@@ -89,9 +89,6 @@ events('todos')
 
 Note, however, that it relies on `this.reduce` method call, which means that event
 handler's context should not be bound to any object in any way.
-
-*Deprecation Notice:* There is also a deprecated `setup` method that calls passed
-function with events object and `reduce` method as arguments.
 
 ### 2. Add an index file to import all events
 
@@ -210,6 +207,30 @@ events('todos')
   .use(fooSetter, 'foo')
   // ... rest of definitions
 ```
+
+### Binding Data Object
+
+Events can be bound to a data object to provide values that are note available at
+handlers definition time:
+
+```js
+const todoEvents = events('todos').init(initialState, (on, reduce, evs) => {
+  on('create', (todo) => {
+    return post(`/projects/${evs.projectId}/todos`, { todo }).then((response) => {
+      reduce('createSuccess', (state) => {
+        return update.push(state, 'items', response.data);
+      });
+    });
+  });
+  // rest of definitions
+});
+
+const projectTodoEvents = todoEvents({ projectId: 1 });
+projectTodoEvents.create(todo); // sends POST request to '/projects/1/todos'
+```
+
+**NOTE:** bound events are "final". They cannot be used to declare new handlers,
+nested event namespaces, etc.
 
 ### `getState` function
 
