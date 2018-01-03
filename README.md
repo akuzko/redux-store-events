@@ -229,6 +229,18 @@ const projectTodoEvents = todoEvents({ projectId: 1 });
 projectTodoEvents.create(todo); // sends POST request to '/projects/1/todos'
 ```
 
+It's worth notice that binding data to events returns the same object for subsequent
+calls if passed arguments are shallow equal, i.e.:
+
+```jsx
+const evs = todoEvents({ projectId: 1 });
+evs === todoEvents({ projectId: 1 }); // true
+evs === todoEvents({ projectId: 2 }); // false
+```
+
+When used together with React, such behavior allows to easily achieve component purity
+eliminating need to manually handle new props that are used for instantiating events.
+
 **NOTE:** bound events are "final". They cannot be used to declare new handlers,
 nested event namespaces, etc.
 

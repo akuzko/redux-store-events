@@ -1,6 +1,7 @@
 import { combineReducers } from 'redux';
 import set from 'lodash.set';
 import get from 'lodash.get';
+import shallowEqual from 'shallow-equal/objects';
 
 const globalEvents = createEvents();
 let eventsStore = {};
@@ -132,6 +133,33 @@ const eventsMixin = {
   }
 };
 
+function bindEvents(events, dataObject) {
+  if (events._boundEvents && shallowEqual(events._boundEvents._data, dataObject)) {
+    return events._boundEvents;
+  }
+
+  const { use, _on, reduce, trigger, getState } = eventsMixin;
+  const evs = {
+    ...dataObject,
+    namespace: events.namespace,
+    handlers: {},
+    use,
+    reduce,
+    trigger,
+    getState
+  };
+  evs.on = _on.bind(evs);
+  evs.reduce = evs.reduce.bind(evs);
+  events._setupHandlers.forEach(fn => fn.call(evs, evs.on, evs.reduce, evs));
+  for (const name in events._onHandlers) {
+    evs.on(name, events._onHandlers[name]);
+  }
+  evs._data = dataObject;
+  events._boundEvents = evs;
+
+  return evs;
+}
+
 function createEvents(namespace) {
   if (namespace) {
     const key = nsToKey(namespace);
@@ -165,24 +193,7 @@ function createEvents(namespace) {
     }
 
     if (typeof ns === 'object') {
-      const { use, _on, reduce, trigger, getState } = eventsMixin;
-      const evs = {
-        ...ns,
-        namespace: events.namespace,
-        handlers: {},
-        use,
-        reduce,
-        trigger,
-        getState
-      };
-      evs.on = _on.bind(evs);
-      evs.reduce = evs.reduce.bind(evs);
-      events._setupHandlers.forEach(fn => fn.call(evs, evs.on, evs.reduce, evs));
-      for (const name in events._onHandlers) {
-        evs.on(name, events._onHandlers[name]);
-      }
-
-      return evs;
+      return bindEvents(events, ns);
     }
 
     return createEvents(namespace ? [...namespace, ns] : [ns]);

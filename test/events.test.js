@@ -142,7 +142,7 @@ describe('events', function() {
       });
     });
 
-    context('using on handler', function() {
+    context('using `on` handler', function() {
       beforeEach(function() {
         events('tests')
           .init({ foo: 1 })
@@ -158,6 +158,26 @@ describe('events', function() {
         expect(events('tests').getState()).toEqual({ foo: undefined });
         events('tests')({ foo: 2 }).test();
         expect(events('tests').getState()).toEqual({ foo: 2 });
+      });
+    });
+
+    describe('bound events caching', function() {
+      beforeEach(function() {
+        events('tests').init({ foo: 1 }, (on, reduce, evs) => {
+          on('test', () => {
+            reduce(() => ({ foo: evs.foo }));
+          });
+        });
+      });
+
+      it('caches last bound events for same data object', function() {
+        events(createStore);
+
+        const evsFoo1 = events('tests')({ foo: 2 });
+        const evsFoo2 = events('tests')({ foo: 2 });
+        expect(evsFoo1).toBe(evsFoo2);
+        const evsFoo3 = events('tests')({ foo: 3 });
+        expect(evsFoo1).toNotBe(evsFoo3);
       });
     });
   });
