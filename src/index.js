@@ -184,10 +184,6 @@ function createEvents(namespace) {
     if (typeof ns === 'function') {
       const createStore = ns;
 
-      if (store) {
-        throw new Error('store is already created');
-      }
-
       store = createStore(globalEvents.getReducer(), ...args);
       return store;
     }

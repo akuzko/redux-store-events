@@ -71,6 +71,16 @@ events('todos').init(initialState, (on, reduce) => {
 });
 ```
 
+Or you can use `setup` function explicitly:
+
+```jsx
+events('todos')
+  .init(initialState)
+  .setup((on, reduce) => {
+    # ...
+  });
+```
+
 The third argument that is passed into a setup function is namespaced events object itself.
 It can be used for direct manipulations, like adding mixins (see bellow).
 
@@ -210,7 +220,7 @@ events('todos')
 
 ### Binding Data Object
 
-Events can be bound to a data object to provide values that are note available at
+Events can be bound to a data object to provide values that are not available at
 handlers definition time:
 
 ```js

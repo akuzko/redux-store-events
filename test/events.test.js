@@ -30,14 +30,6 @@ describe('events', function() {
       expect(store.getState()).toEqual({ tests: { foo: 2 } });
     });
 
-    it('throws error if already attached to store on initialization', function() {
-      events(createStore);
-
-      expect(function() {
-        events(createStore);
-      }).toThrow('store is already created');
-    });
-
     describe('#init', function() {
       it('initializes events and uses setup function that yield "on" and "reduce" functions', function() {
         events('tests').init({ foo: 1 }, (on, reduce) => {
