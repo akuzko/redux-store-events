@@ -99,6 +99,8 @@ const eventsMixin = {
   on(name, handler) {
     this._onHandlers[name] = handler;
     this._on(name, handler);
+
+    return this;
   },
 
   trigger(name, ...args) {

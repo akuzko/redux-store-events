@@ -61,6 +61,24 @@ describe('events', function() {
       });
     });
 
+    describe('#on', function() {
+      it('can be chained', function() {
+        events('tests')
+          .init({})
+          .on('foo', function() {
+            this.reduce(() => ({ value: 'foo' }));
+          })
+          .on('bar', function() {
+            this.reduce(() => ({ value: 'bar' }));
+          });
+
+        const store = events(createStore);
+
+        events('tests').bar();
+        expect(store.getState()).toEqual({ tests: { value: 'bar' } });
+      });
+    });
+
     describe('#trigger', function() {
       it('calls corresponding event handler', function() {
         const spy = createSpy();
